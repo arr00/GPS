@@ -15,19 +15,35 @@ public class GPS {
     }
     
     
-    ///Distance to a point using the Equitectangular formula. Units will match planet radius units
+    /// Distance to a point using the Equitectangular formula. Units will match planet radius units
     public func distanceToEquirectangular(gps:GPS) -> Double {
         return GPS.distanceBetweenEquirectangular(f: self, s: gps)
     }
     
-    ///Distance to a point using the Haversine formula. Units will match planet radius units
+    /// Distance to a point using the Haversine formula. Units will match planet radius units
     public func distanceToHaversine(gps:GPS) -> Double {
         return GPS.distanceBetweenHaversine(f: self, s: gps)
     }
     
-    ///Returns the GPS coordinates on the other side of the world. (If you were to dig a hole perfectly straight this is where you would end up)
+    /// Returns the GPS coordinates on the other side of the world. (If you were to dig a hole perfectly straight this is where you would end up)
     public func oppositeCoordinate() -> GPS {
         return GPS.oppositeCoordinate(gps: self)
+    }
+    /// Returns the Date (IN UTC) of sunrise at this GPS on the given date (IN UTC) and with the given zenith
+    public func sunriseTime(date:Date, sunZenith:SunZenith) -> Date? {
+        return GPS.sunriseTime(gps: self, date: date, sunZenith: sunZenith)
+    }
+    /// Returns the Date (IN UTC) of sunset at this GPS on the given date (IN UTC) and with the given zenith
+    public func sunsetTime(date:Date, sunZenith:SunZenith) -> Date? {
+        return GPS.sunsetTime(gps: self, date: date, sunZenith: sunZenith)
+    }
+    /// Returns the duration of the day in seconds on a given day with a given sun zenith
+    public func dayDuration(date:Date, sunZenith:SunZenith) -> Double {
+        return GPS.dayDuration(gps: self, date: date, sunZenith: sunZenith)
+    }
+    /// Returns the heading to the given GPS coordinates (degrees)
+    public func headingTo(gps:GPS) -> Double {
+        return GPS.headingBetweenCoordinates(f: self, s: gps)
     }
     
      
@@ -55,7 +71,7 @@ public class GPS {
     
     //STATIC FUNCS
     
-    ///Returns the distance from point f to point s in miles using the haversine formula
+    ///Returns the distance from point f to point s using the haversine formula (Unites will match the planet radius units)
     public static func distanceBetweenHaversine(f:GPS,s:GPS) -> Double {
         let long1 = degreesToRadians(degrees: f.longitude)
         let long2 = degreesToRadians(degrees: s.longitude)
@@ -82,7 +98,7 @@ public class GPS {
         return c * EARTH_RADIUS_METRIC
     }*/
     
-    ///Returns the distance from point f to point s using the equirectangular formula (signicantly less acurate than haversine but faster). Units will match planet radius units
+    /// Returns the distance from point f to point s using the equirectangular formula (signicantly less acurate than haversine but faster). Units will match planet radius units
     public static func distanceBetweenEquirectangular(f:GPS,s:GPS) -> Double {
         //calculate arc length between two line segment tips
         //arc length = radius times angle in radians
@@ -106,7 +122,70 @@ public class GPS {
     
     ///Returns the heading that points towards s from f
     public static func headingBetweenCoordinates(f:GPS,s:GPS) -> Double {
-        return radiansToDegrees(radians: atan2(s.latitude - f.latitude, s.longitude - f.longitude))
+        // Find shortest route
+        let latitudeTravel = s.latitude - f.latitude
+       
+        var longitudeTravel = s.longitude - f.longitude
+        if abs(longitudeTravel) > 180 {
+            print("There is a faster route")
+            //Go around the other way
+            let sDistance = 180 - abs(s.longitude)
+            let fDistance = 180 - abs(f.longitude)
+            
+            var totalDistance = sDistance + fDistance
+            if longitudeTravel > 0 {
+                totalDistance *= -1
+            }
+            longitudeTravel = totalDistance
+        }
+        
+        //let totalTravelTraditional = sqrt(pow(latitudeTravel, 2) + pow(longitudeTravel, 2))
+        /*
+        let northPoleLatTravel = (90 - f.latitude) + (90 - s.latitude)
+        let southPoleLatTravel = abs(-90 - f.latitude) + abs(-90 - s.latitude)
+        let minPolarLatTravel = min(northPoleLatTravel, southPoleLatTravel)
+        let tempPolarFLong = f.longitude > 0 ? f.longitude - 180 : f.longitude + 180
+        
+        var polarlongitudeTravel = s.longitude - tempPolarFLong
+        if polarlongitudeTravel > 180 {
+            polarlongitudeTravel -= 360
+        }
+        if polarlongitudeTravel < -180 {
+            polarlongitudeTravel += 360
+        }
+        
+        if abs(polarlongitudeTravel) > 180 {
+            print("There is a faster route")
+            //Go around the other way
+            let sDistance = 180 - abs(s.longitude)
+            let fDistance = 180 - abs(tempPolarFLong)
+            
+            var totalDistance = sDistance + fDistance
+            if longitudeTravel > 0 {
+                totalDistance *= -1
+            }
+            polarlongitudeTravel = totalDistance
+        }
+        
+        let totalTravelPole = sqrt(pow(minPolarLatTravel, 2) + pow(polarlongitudeTravel, 2))
+        
+        if totalTravelPole < totalTravelTraditional {
+            print("Polar travel is faster!")
+            if northPoleLatTravel < southPoleLatTravel {
+                //go over the north pole, positive latitude travel
+                return radiansToDegrees(radians: atan2(minPolarLatTravel, -polarlongitudeTravel))
+            }
+            else {
+                // hop the south pole, negative latitude travel
+                return radiansToDegrees(radians: atan2(minPolarLatTravel * -1, -polarlongitudeTravel))
+            }
+        }*/
+        
+        var result = radiansToDegrees(radians: atan2(latitudeTravel, longitudeTravel))
+        if result < 0 {
+            result += 360
+        }
+        return result
     }
     
     ///Returns the GPS coordinates on the other side of the world. (If you were to dig a hole perfectly straight this is where you would end up)
@@ -122,7 +201,7 @@ public class GPS {
         
         return (degrees,minutes,seconds)
     }
-    ///convert degrees minutes and seconds to decimal format
+    ///Convert degrees minutes and seconds to decimal format
     public static func toDecimal(degrees:Double,minutes:Double,seconds:Double) -> Double {
         return degrees + minutes / 60 + seconds / 3600
     }
@@ -134,120 +213,33 @@ public class GPS {
     public static func distanceToHorizonMetric(atHeight:Double) -> Double {
         return sqrt(2 * planetRadius * atHeight/1000 + pow(atHeight/1000,2))
     }
-    
-    ///Helper function for sunrise and sunset #DRY
-    private static func sunriseSunsetHelper(gps:GPS, date:Date, sunZenith:SunZenith, sunPhase:SunPhase) -> Date? {
-        var calendar = Calendar.current
-        calendar.timeZone = TimeZone(identifier: "Etc/UTC")!
-        let day = calendar.component(.day, from: date)
-        let month = calendar.component(.month, from: date)
-        let year = calendar.component(.year, from: date)
-        
-        let n1 = floor(275.0 * Double(month) / 9)
-        let n2 = floor((Double(month) + 9.0) / 12.0)
-        let n3 = (1 + floor((Double(year) - 4 * floor(Double(year) / 4) + 2) / 3))
-        let n = n1 - (n2 * n3) + Double(day) - 30
-        
-        let longHour = gps.longitude/15.0
-        
-        var t = Double()
-        
-        switch sunPhase {
-        case .sunrise:
-            t = n + ((6 - longHour) / 24.0)
-        case .sunset:
-            t = n + ((18.0 - longHour) / 24.0)
-        default:
-            print("Do later")
-        }
-        
-        let m = (0.9856 * t) - 3.289
-        
-        var l = m + (1.916 * mySin(degrees:m)) + (0.020 * mySin(degrees:(2 * m))) + 282.634
-        
-        if l >= 360 {
-            l -= 360
-        }
-        else if l < 0 {
-            l += 360
-        }
-        
-        
-        var ra = myAtan(degrees: 0.91764 * myTan(degrees: l))
-        
-        if ra >= 360 {
-            ra -= 360
-        }
-        else if ra < 0 {
-            ra += 360
-        }
-        
-        let Lquadrant  = (floor(l/90.0)) * 90.0
-        let RAquadrant = (floor(ra/90.0)) * 90.0
-        ra += (Lquadrant - RAquadrant)
-        
-        ra /= 15
-        
-        let sinDec = 0.39782 * mySin(degrees: l)
-        let cosDec = myCos(degrees: myAsin(degrees:sinDec))
-        
-        let cosH = (myCos(degrees: sunZenith.rawValue) - (sinDec * mySin(degrees: gps.latitude))) / (cosDec * myCos(degrees: gps.latitude))
-        
-        print("cosH is \(cosH)")
-        if cosH > 1 || cosH < -1 {
-            return nil
-        }
-        
-        
-        
-        //degreesToRadians(degrees: cosH)
-        
-        //radiansToDegrees(radians: acos(degreesToRadians(degrees: cosH)))
-        var h = Double()
-        switch sunPhase {
-        case SunPhase.sunset:
-            h = myAcos(degrees: cosH)
-        case .sunrise:
-            h = 360 - myAcos(degrees: cosH)
-        default:
-            print("Do later")
-        }
-        
-        h /= 15
-        
-        let time = h + ra - (0.06571 * t) - 6.622
-        
-        var ut = time - longHour
-        if ut > 24 {
-            ut -= 24
-        }
-        else if ut < 0 {
-            ut += 24
-        }
-        
-        var dateComponents = DateComponents()
-        dateComponents.calendar = calendar
-        dateComponents.timeZone = calendar.timeZone
-        dateComponents.day = day
-        dateComponents.month = month
-        dateComponents.year = year
-        Int(floor(ut))
-        dateComponents.hour = Int(floor(ut))
-        Int(((ut - floor(ut)) * 60))
-        dateComponents.minute = Int(((ut - floor(ut)) * 60))
-        
-        let resultDate = calendar.date(from: dateComponents)
-        
-        
-        return resultDate!
-    }
-    
+    /// Calculate the time of sunset on a given date (UTC) and at a given GPS. (Zenith specifies the angle of the sun. Official is when it just dips below the horizon). Date is nil when it doesn't set on the specified day.
     public static func sunsetTime(gps:GPS, date:Date, sunZenith:SunZenith) -> Date? {
         return sunriseSunsetHelper(gps: gps, date: date, sunZenith: sunZenith, sunPhase: .sunset)
     }
+    /// Calculate the time of Sunrise on a given date (UTC) and at a given GPS. (Zenith specifies the angle of the sun. Official is when it just breaks the horizon). Date is nil when it doesn't rise on the specified day.
     public static func sunriseTime(gps:GPS, date:Date, sunZenith:SunZenith) -> Date? {
         return sunriseSunsetHelper(gps: gps, date: date, sunZenith: sunZenith, sunPhase: .sunrise)
     }
+    /// Returns the duration of the day in seconds at a given GPS coordinate on a given day with a given sun zenith
+    public static func dayDuration(gps:GPS, date:Date, sunZenith:SunZenith) -> Double {
+        let sunrise = GPS.sunriseTime(gps: gps, date: date, sunZenith: sunZenith)
+        var sunset = GPS.sunsetTime(gps: gps, date: date, sunZenith: sunZenith)
+        
+        if sunrise == nil || sunset == nil {
+            // Sun doesnt rise or set
+            return 0
+        }
+        
+        if sunrise! > sunset! {
+            //sunrise is after sunset. Get sunset of the next day
+            let nextDay = date.addingTimeInterval(24 * 60 * 60)
+            sunset = GPS.sunsetTime(gps: gps, date: nextDay, sunZenith: sunZenith)
+        }
+        
+        return sunset!.timeIntervalSince1970 - sunrise!.timeIntervalSince1970
+    }
+    
     
     /*
     ///Get the GPS coordnates x miles north and x miles east from gps
@@ -271,8 +263,9 @@ public class GPS {
     
     
     
-    
+    //================
     //Helper functions
+    //================
     private static func combineArcLengths(arcOne:Double, arcTwo:Double) -> Double {
         return sqrt(pow(arcOne, 2) + pow(arcTwo, 2))
     }
@@ -283,46 +276,127 @@ public class GPS {
         return (180/Double.pi) * radians
     }
     
+    /// Helper function for sunrise and sunset #DRY
+    private static func sunriseSunsetHelper(gps:GPS, date:Date, sunZenith:SunZenith, sunPhase:SunPhase) -> Date? {
+        var calendar = Calendar.current
+        calendar.timeZone = TimeZone(identifier: "Etc/UTC")!
+        let day = calendar.component(.day, from: date)
+        let month = calendar.component(.month, from: date)
+        let year = calendar.component(.year, from: date)
+        let n1 = floor(275.0 * Double(month) / 9)
+        let n2 = floor((Double(month) + 9.0) / 12.0)
+        let n3 = (1 + floor((Double(year) - 4 * floor(Double(year) / 4) + 2) / 3))
+        let n = n1 - (n2 * n3) + Double(day) - 30
+        let longHour = gps.longitude/15.0
+        var t = Double()
+        switch sunPhase {
+        case .sunrise:
+            t = n + ((6 - longHour) / 24.0)
+        case .sunset:
+            t = n + ((18.0 - longHour) / 24.0)
+        }
+        let m = (0.9856 * t) - 3.289
+        var l = m + (1.916 * mySin(degrees:m)) + (0.020 * mySin(degrees:(2 * m))) + 282.634
+        if l >= 360 {
+            l -= 360
+        } else if l < 0 {
+            l += 360
+        }
+        var ra = myAtan(degrees: 0.91764 * myTan(degrees: l))
+        if ra >= 360 {
+            ra -= 360
+        } else if ra < 0 {
+            ra += 360
+        }
+        let Lquadrant  = (floor(l/90.0)) * 90.0
+        let RAquadrant = (floor(ra/90.0)) * 90.0
+        ra += (Lquadrant - RAquadrant)
+        ra /= 15
+        let sinDec = 0.39782 * mySin(degrees: l)
+        let cosDec = myCos(degrees: myAsin(degrees:sinDec))
+        let cosH = (myCos(degrees: sunZenith.rawValue) - (sinDec * mySin(degrees: gps.latitude))) / (cosDec * myCos(degrees: gps.latitude))
+        print("cosH is \(cosH)")
+        if cosH > 1 || cosH < -1 {
+            return nil
+        }
+        var h = Double()
+        switch sunPhase {
+        case SunPhase.sunset:
+            h = myAcos(degrees: cosH)
+        case .sunrise:
+            h = 360 - myAcos(degrees: cosH)
+        }
+        h /= 15
+        let time = h + ra - (0.06571 * t) - 6.622
+        var ut = time - longHour
+        if ut > 24 {
+            ut -= 24
+        }
+        else if ut < 0 {
+            ut += 24
+        }
+        var dateComponents = DateComponents()
+        dateComponents.calendar = calendar
+        dateComponents.timeZone = calendar.timeZone
+        dateComponents.day = day
+        dateComponents.month = month
+        dateComponents.year = year
+        Int(floor(ut))
+        dateComponents.hour = Int(floor(ut))
+        Int(((ut - floor(ut)) * 60))
+        dateComponents.minute = Int(((ut - floor(ut)) * 60))
+        
+        let resultDate = calendar.date(from: dateComponents)
+        
+        return resultDate!
+    }
     
+    
+    //============
     //Math helpers
-    static func mySin(degrees: Double) -> Double {
+    //============
+    private static func mySin(degrees: Double) -> Double {
         return __sinpi(degrees/180.0)
     }
     
-    static func myCos(degrees: Double) -> Double {
+    private static func myCos(degrees: Double) -> Double {
         return __cospi(degrees/180.0)
     }
     
-    static func myTan(degrees: Double) -> Double {
+    private static func myTan(degrees: Double) -> Double {
         return __tanpi(degrees/180.0)
     }
     
-    static func myAtan(degrees: Double) -> Double {
+    private static func myAtan(degrees: Double) -> Double {
         return Darwin.atan(degrees) * (180.0 / Double.pi)
     }
     
-    static func myAcos(degrees: Double) -> Double {
+    private static func myAcos(degrees: Double) -> Double {
         return Darwin.acos(degrees) * (180.0 / Double.pi)
     }
     
-    static func myAsin(degrees: Double) -> Double {
+    private static func myAsin(degrees: Double) -> Double {
         return Darwin.asin(degrees) * (180.0 / Double.pi)
     }
+    
+    
     
     
     ///Enum describing phases of the sun
     private enum SunPhase {
         case sunset
         case sunrise
-        case midday
-        case midnight
     }
     
     ///Enum describing the sun zenith
     public enum SunZenith:Double {
+        /// Official zenith for sunrise and sunset. Occurs when the sun goes below or rises above the horizon
         case official = 90.888888
-        case civil = 98
+        /// Occurs when the sun dips 6 degrees below the horizon. During civil twilight, the atmosphere reflects enough light to allow outdoor activities.
+        case civil = 96
+        /// Occurs when the sun dips 12 degrees below the horizon. The horizon is generally still visable, but many of the brighter stars are visible during nautical twilight (between civil and nautical sunset). This enables navigation by stars at sea and is the namesake for it.
         case nautical = 102
+        /// Occurs when the sun dips 18 degrees below the horizon. Often hard to differentiate between astronomical twilight and night but astronomers often have difficulty seeing fainter stars during this time. Thus astronomical twilight.
         case astronomical = 108
     }
     
@@ -342,13 +416,19 @@ let test = GPS.toDegreesMinuteSecond(coordinate: gps1.latitude)
 GPS.toDecimal(degrees: test.degrees, minutes: test.minutes, seconds: test.seconds)
 GPS.distanceToHorizon(atHeight: 29029)*/
 
-let gps = GPS(latitude: 40.908005, longitude: -74.010679)
+let gps = GPS(latitude: -50, longitude: -180)
+let gps2 = GPS(latitude: -40, longitude: 20)
 
-let dateString = "01/01/2019"
+let dateString = "09/20/2018"
 let dateFormatter = DateFormatter()
-dateFormatter.dateFormat = "mm/dd/yyyy"
+dateFormatter.dateFormat = "MM/dd/yyyy"
+dateFormatter.timeZone = TimeZone(identifier: "Etc/UTC")!
+let date = dateFormatter.date(from: dateString)!
+
 
 //GPS.sunsetTime(gps: gps, date: dateFormatter.date(from: dateString)!)
 //GPS.sunPhaseTime(gps: gps, date: dateFormatter.date(from: dateString)!, sunPhase: .sunrise, sunZenith: .official)
-GPS.sunsetTime(gps: gps, date: dateFormatter.date(from: dateString)!, sunZenith: .official)
+//GPS.sunsetTime(gps: gps, date: dateFormatter.date(from: dateString)!, sunZenith: .nautical)
+gps2.headingTo(gps: gps)
+//GPS.dayDuration(gps: gps, date: date, sunZenith: .official)
 
