@@ -90,9 +90,9 @@ public class GPS {
     public static let MIN_LONGITUDE:Double = -180.0
     public static let MAX_LONGITUDE:Double = 180.0
     /// Radius of Earth (Miles)
-    public static let EARTH_RADIUS:Double = 3959.0
+    public static let EARTH_RADIUS:Double = 3963.1905919
     /// Radius of Earth (Kilometers)
-    public static let EARTH_RADIUS_METRIC:Double = EARTH_RADIUS * 1.60934
+    public static let EARTH_RADIUS_METRIC:Double = 6378.137
     /// Radius of Moon (Miles)
     public static let MOON_RADIUS:Double = 1079.0
     /// Radius of Moon (Kilometers)
@@ -460,6 +460,11 @@ public class GPS {
         case astronomical = 108
     }
     
+    // Credits
+    // https://www.movable-type.co.uk/scripts/latlong.html
+    // https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html
+    // Almanac for Computers, 1990 sunrise sunset algorithm hosted here: http://edwilliams.org/sunrise_sunset_algorithm.htm
+    
     
 }
 
@@ -474,5 +479,3 @@ print(GPS.bearingBetweenCoordinates(f: gps1, s: gps2))
 GPS.planetRadius = GPS.EARTH_RADIUS_METRIC
 
 print(gps1.distanceToHaversine(gps: gps2))
-
-
