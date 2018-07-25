@@ -9,14 +9,18 @@ import CoreLocation
 /// A `GPS` instance contains a latitude and longitude and is used for performing operations in the GPS library. `GPS` instances have a few instance methods. All instance methods use public static methods for the calculations.
 
 
-public class GPS {
+public class GPS: CustomStringConvertible {
+    
+    public var description: String {
+        return "GPS coordinate Latitude: \(latitude), Longitude: \(longitude)"
+    }
     
     // MARK: Properties
     public var latitude:Double
     public var longitude:Double
     
-    
     // MARK: Initializers
+    
     /// Initiazlizes a new `GPS` object
     /// - Parameter latitude: Latitude of the GPS coordinate
     /// - Parameter longitude: Longitude of the GPS coordinate
@@ -33,20 +37,19 @@ public class GPS {
     }
     
     // MARK: Instance Methods
+    
     /// Distance to a point using the Equitectangular formula. Units will match planet radius units. Less accurate than Haversine but less time consuming.
     /// - Parameter gps: Distance to this `GPS` coordinate
     /// - Returns: Distance in units matching `GPS.planetRadius` units.
     public func distanceToEquirectangular(gps:GPS) -> Double {
         return GPS.distanceBetweenEquirectangular(f: self, s: gps)
     }
-    
     /// Distance to a point using the Haversine formula. More accurate than equirectangular but more time consuming.
     /// - Parameter gps: Distance to this `GPS` coordinate
     /// - Returns: Distance in units matching `GPS.planetRadius` units.
     public func distanceToHaversine(gps:GPS) -> Double {
         return GPS.distanceBetweenHaversine(f: self, s: gps)
     }
-    
     /// Returns the GPS coordinates on the other side of the world from the instance `GPS`. (If you were to dig a hole perfectly straight this is where you would end up)
     /// - Returns: A `GPS` coordinate referring to the opposite side of the planet.
     public func oppositeCoordinate() -> GPS {
@@ -87,8 +90,6 @@ public class GPS {
         return GPS.midpointCoordinate(f: self, s: gps)
     }
     
-    
-    
     // MARK: Static Vars
     
     public static let MAX_LATITUDE:Double = +90.0
@@ -128,21 +129,7 @@ public class GPS {
         return c * planetRadius
     }
     
-    /*
-     ///Returns the distance from point f to point s in kilometers using the haversine formula
-     public static func distanceBetweenHaversineMetric(f:GPS,s:GPS) -> Double {
-     let long1 = degreesToRadians(degrees: f.longitude)
-     let long2 = degreesToRadians(degrees: s.longitude)
-     let lat1 = degreesToRadians(degrees: f.latitude)
-     let lat2 = degreesToRadians(degrees: s.latitude)
-     let longDifference = abs(long1 - long2)
-     let latDifference = abs(lat1 - lat2)
-     let a = pow(sin(latDifference/2), 2) + cos(lat1) * cos(lat2) * pow(sin(longDifference/2), 2)
-     let c = 2 * atan2(sqrt(a), sqrt(1-a))
-     return c * EARTH_RADIUS_METRIC
-     }*/
-    
-    /// Distance to a point using the Equirectangular formula. More less than Haversine but less time consuming.
+    /// Distance to a point using the Equirectangular formula. More less than Haversine but less time consuming. Can be used accuratly for short distances on earth. When calculating distances on other planets, use equirectangular always.
     /// - Parameter f: First `GPS`
     /// - Parameter s: Second `GPS`
     /// - Returns: Distance from f to s in units matching `GPS.planetRadius`
@@ -156,16 +143,6 @@ public class GPS {
         let distance = planetRadius * arcAsRadians
         return distance
     }
-    /*
-     ///Returns the distance from point f to point s in kilometers using the equirectangular formula (signicantly less acurate than haversine but faster)
-     public static func distanceBetweenEquirectangularMetric(f:GPS,s:GPS) -> Double {
-     let longDifference = abs(f.longitude - s.longitude)
-     let latDifference = abs(f.latitude - s.latitude)
-     let combinedArc = combineArcLengths(arcOne: longDifference, arcTwo: latDifference)
-     let arcAsRadians = degreesToRadians(degrees: combinedArc)
-     let distance = EARTH_RADIUS_METRIC * arcAsRadians
-     return distance
-     }*/
     
     /// Calculate the bearing between two `GPS`
     /// - Parameter f: First `GPS` (heading from)
@@ -368,9 +345,9 @@ public class GPS {
     }
     
     
-    //============
+    //===================
     // MARK: Math helpers
-    //============
+    //===================
     private static func mySin(degrees: Double) -> Double {
         return __sinpi(degrees/180.0)
     }
@@ -416,12 +393,10 @@ public class GPS {
         case astronomical = 108
     }
     
-    // Credits
+    // MARK: Credits
     // https://www.movable-type.co.uk/scripts/latlong.html
     // https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html
     // Almanac for Computers, 1990 sunrise sunset algorithm hosted here: http://edwilliams.org/sunrise_sunset_algorithm.htm
-    
-    
 }
 
 
@@ -434,4 +409,4 @@ let gps4 = GPS(latitude: 1, longitude: 0)
 print(GPS.bearingBetweenCoordinates(f: gps1, s: gps2))
 GPS.planetRadius = GPS.EARTH_RADIUS_METRIC
 
-print(gps1.distanceToHaversine(gps: gps2))
+print(gps1.midpointTo(gps: gps2))
