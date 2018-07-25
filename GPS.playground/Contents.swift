@@ -76,9 +76,15 @@ public class GPS {
     /// Calculate the bearing to another `GPS`
     /// - Parameter gps: `GPS` to find the heading to.
     /// - Returns: The bearing to the given `GPS` in degrees. (between 0 and 360)
-    /// - warning: Bearings are not calculated over the poles.
     public func bearingTo(gps:GPS) -> Double {
         return GPS.bearingBetweenCoordinates(f: self, s: gps)
+    }
+    /// Halfway along the great circle path between two coordinates
+    /// - Parameter f: Origin `GPS`
+    /// - Parameter s: Destination `GPS`
+    /// - Returns: `GPS` of midpoint
+    public func midpointTo(gps:GPS) -> GPS {
+        return GPS.midpointCoordinate(f: self, s: gps)
     }
     
     
@@ -164,10 +170,8 @@ public class GPS {
     /// Calculate the bearing between two `GPS`
     /// - Parameter f: First `GPS` (heading from)
     /// - Parameter s: Second `GPS` (heading to)
-    /// - Returns: The bearing to the given `GPS` in degrees. (between 0 and 360)
-    /// - warning: Bearing are not calculated over the poles.
+    /// - Returns: The bearing to the given `GPS` in degrees. (between 0 and 360. 0 is North)
     public static func bearingBetweenCoordinates(f:GPS,s:GPS) -> Double {
-        
         let y = mySin(degrees: s.longitude - f.longitude) * myCos(degrees: s.latitude)
         let x = myCos(degrees: f.latitude) * mySin(degrees: s.latitude) - mySin(degrees: f.latitude) * myCos(degrees: s.latitude) * myCos(degrees: s.longitude - f.longitude)
         let bearing = atan2(y, x)
@@ -179,71 +183,21 @@ public class GPS {
             finalBearing += 360
         }
         return finalBearing
+    }
+    
+    /// Halfway along the great circle path between two coordinates
+    /// - Parameter f: Origin `GPS`
+    /// - Parameter s: Destination `GPS`
+    /// - Returns: `GPS` of midpoint
+    public static func midpointCoordinate(f: GPS, s: GPS) -> GPS {
+        let bx = myCos(degrees: s.latitude) * myCos(degrees: s.longitude - f.longitude)
+        let by = myCos(degrees: s.latitude) * mySin(degrees: s.longitude - f.longitude)
+        let φ3 = atan2(mySin(degrees: f.latitude) + mySin(degrees: s.latitude), sqrt(pow(myCos(degrees: f.latitude) + bx, 2) + pow(by, 2)))
+        let λ3 = degreesToRadians(degrees: f.longitude) + atan2(by, myCos(degrees: f.latitude) + bx)
+        var lon = radiansToDegrees(radians: λ3)
+        lon = (lon + 540).truncatingRemainder(dividingBy: 360) - 180
         
-        /*
-        let latitudeTravel = s.latitude - f.latitude
-        
-        var longitudeTravel = s.longitude - f.longitude
-        if abs(longitudeTravel) > 180 {
-            print("There is a faster route")
-            //Go around the other way
-            let sDistance = 180 - abs(s.longitude)
-            let fDistance = 180 - abs(f.longitude)
-            
-            var totalDistance = sDistance + fDistance
-            if longitudeTravel > 0 {
-                totalDistance *= -1
-            }
-            longitudeTravel = totalDistance
-        }
-        
-        //let totalTravelTraditional = sqrt(pow(latitudeTravel, 2) + pow(longitudeTravel, 2))
-        /*
-         let northPoleLatTravel = (90 - f.latitude) + (90 - s.latitude)
-         let southPoleLatTravel = abs(-90 - f.latitude) + abs(-90 - s.latitude)
-         let minPolarLatTravel = min(northPoleLatTravel, southPoleLatTravel)
-         let tempPolarFLong = f.longitude > 0 ? f.longitude - 180 : f.longitude + 180
-         
-         var polarlongitudeTravel = s.longitude - tempPolarFLong
-         if polarlongitudeTravel > 180 {
-         polarlongitudeTravel -= 360
-         }
-         if polarlongitudeTravel < -180 {
-         polarlongitudeTravel += 360
-         }
-         
-         if abs(polarlongitudeTravel) > 180 {
-         print("There is a faster route")
-         //Go around the other way
-         let sDistance = 180 - abs(s.longitude)
-         let fDistance = 180 - abs(tempPolarFLong)
-         
-         var totalDistance = sDistance + fDistance
-         if longitudeTravel > 0 {
-         totalDistance *= -1
-         }
-         polarlongitudeTravel = totalDistance
-         }
-         
-         let totalTravelPole = sqrt(pow(minPolarLatTravel, 2) + pow(polarlongitudeTravel, 2))
-         
-         if totalTravelPole < totalTravelTraditional {
-         print("Polar travel is faster!")
-         if northPoleLatTravel < southPoleLatTravel {
-         //go over the north pole, positive latitude travel
-         return radiansToDegrees(radians: atan2(minPolarLatTravel, -polarlongitudeTravel))
-         }
-         else {
-         // hop the south pole, negative latitude travel
-         return radiansToDegrees(radians: atan2(minPolarLatTravel * -1, -polarlongitudeTravel))
-         }
-         }*/
-        
-        var result = radiansToDegrees(radians: atan2(latitudeTravel, longitudeTravel))
-        if result < 0 {
-            result += 360
-        }
-        return result*/
+        return GPS(latitude: radiansToDegrees(radians: φ3), longitude: lon)
     }
     
     /// GPS coordinates on the other side of the world. (If you were to dig a hole perfectly straight this is where you would end up)
@@ -255,7 +209,7 @@ public class GPS {
     
     /// Convert decimal format coordinates to degrees, minutes, seconds
     /// - Parameter coordinate: Decimal version of coordinate
-    /// - Returns: Tuple containing degrees minutes and seconds
+    /// - Returns: Tuple containing degrees, minutes, and seconds
     public static func toDegreesMinuteSecond(coordinate:Double) -> (degrees:Double,minutes:Double,seconds:Double) {
         let degrees = floor(coordinate)
         let minutes = floor((coordinate - degrees) * 60)
@@ -271,16 +225,18 @@ public class GPS {
     public static func toDecimal(degrees:Double,minutes:Double,seconds:Double) -> Double {
         return degrees + minutes / 60 + seconds / 3600
     }
-    /// Calculates the distance to the horizon. Doesn't take refraction into account
+    /// Calculates the distance to the horizon.
     /// - Precondition: Planet radius must be in miles
     /// - Parameter atHeight: Height in feet
     /// - Returns: Distance to the horizon (miles)
+    /// - Warning: Doesn't take refraction into account
     public static func distanceToHorizon(atHeight:Double) -> Double {
         return sqrt(2 * planetRadius * atHeight/5280 + pow(atHeight/5280,2))
     }
-    /// Calculates the distance to the horizon. Doesn't take refraction into account
+    /// Calculates the distance to the horizon.
     /// - Precondition: Planet radius must be in kilometers
     /// - Parameter atHeight: Height in meters
+    /// - Warning: Doesn't take refraction into account
     public static func distanceToHorizonMetric(atHeight:Double) -> Double {
         return sqrt(2 * planetRadius * atHeight/1000 + pow(atHeight/1000,2))
     }
